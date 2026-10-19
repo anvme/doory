@@ -1,4 +1,4 @@
-import type { Asset, AudioStockInfo, SoundCredit, StockPage, StockPhoto, StockProviders, StockSoundPage } from '@/types/api'
+import type { Asset, AudioStockInfo, SoundCredit, StockPage, StockPhoto, StockProviders, StockSoundPage, StockVideo, StockVideoInfo, StockVideoPage } from '@/types/api'
 import { API_BASE, http } from './client'
 
 export interface StockSearchOptions {
@@ -42,4 +42,28 @@ export const audioStockApi = {
   /** Same-origin address of the sound's short preview (relayed by the server). */
   previewUrl: (id: string) => `${API_BASE}/stock/audio/${encodeURIComponent(id)}/preview/`,
   importSound: (id: string) => http.post<Asset & { credit: SoundCredit | null }>('/stock/audio/import/', { json: { id } }),
+}
+
+export interface VideoSearchOptions {
+  /** A provider name or `all`; the server picks the first provider when it is left out. */
+  provider?: string
+  /** The shape of the clip: `all`, `landscape`, `portrait` or `square`. */
+  orientation?: string
+  lang?: string
+  perPage?: number
+  signal?: AbortSignal
+}
+
+/** Stock video through the server: the key, the CDN and the file itself all stay on the server. */
+export const videoStockApi = {
+  info: () => http.get<StockVideoInfo>('/stock/videos/info/'),
+  search: (q: string, { provider, orientation, lang, perPage = 20, signal }: VideoSearchOptions = {}) =>
+    http.get<StockVideoPage>('/stock/videos/', {
+      query: { q, page: 1, per_page: perPage, ...(provider ? { provider } : {}), ...(orientation && orientation !== 'all' ? { orientation } : {}), ...(lang ? { lang } : {}) },
+      signal,
+    }),
+  /** Same-origin address of the clip's small file (relayed by the server). */
+  previewUrl: (provider: string, id: string) =>
+    `${API_BASE}/stock/videos/${encodeURIComponent(provider)}/${encodeURIComponent(id)}/preview/`,
+  importVideo: (video: Pick<StockVideo, 'provider' | 'id'>) => http.post<Asset>('/stock/videos/import/', { json: { provider: video.provider, id: video.id } }),
 }

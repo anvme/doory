@@ -75,6 +75,31 @@ FREESOUND_API_KEY=...
 
 The settings are in [configuration.md](../self-hosting/configuration.md#stock-media).
 
+## Video (Pexels, Pixabay)
+
+The editor's **Videos** panel searches stock clips and copies one into the user's uploads, with its poster
+frame and (when it has one) its sound. It needs video uploads to be on, which needs ffmpeg in the API
+container: see [video assets](../self-hosting/configuration.md#video-assets).
+
+Each clip provider has its own key, so a busy video key never uses up the photo quota. A video key falls
+back to the photo key of the same provider when it is not set.
+
+```ini
+PEXELS_VIDEO_API_KEY=...
+PIXABAY_VIDEO_API_KEY=...
+```
+
+- The browser never talks to the provider: the search goes through the API and the preview is relayed by the
+  server, so the site's media policy stays `self`.
+- The providers ask for a visible credit: the panel shows "Videos provided by Pexels" (or Pixabay) next to the
+  results, and the imported clip keeps the credit in its metadata.
+- Every provider limits calls per key. Doory counts them against `STOCK_PEXELS_VIDEO_RATE` (default `200/h`)
+  and `STOCK_PIXABAY_VIDEO_RATE` (default `5000/h`), shared by all users; the searches are cached for
+  `STOCK_PEXELS_VIDEO_CACHE_SECONDS` (default `3600`) and `STOCK_PIXABAY_VIDEO_CACHE_SECONDS` (default
+  `86400`, the day Pixabay's terms ask for).
+- A clip is stored as it came and is never re-encoded; the server only reads it, writes its poster frame and
+  extracts its sound.
+
 ## Adding a provider
 
 New providers get a section on this page and a row in configuration.md. They don't get a page of their own.

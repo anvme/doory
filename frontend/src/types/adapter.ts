@@ -24,6 +24,9 @@ import type {
   ShareLinkInput,
   ShareRole,
   StockPage,
+  StockVideo,
+  StockVideoInfo,
+  StockVideoPage,
   AudioStockInfo,
   SoundCredit,
   StockSoundPage,
@@ -39,6 +42,15 @@ import type {
   VersionSummary,
 } from './api'
 import type { DoryDocument } from './document'
+
+export interface VideoStockQuery {
+  /** A provider name or `all`; the server picks the first provider when it is left out. */
+  provider?: string
+  /** The shape of the clip: `all`, `landscape`, `portrait` or `square`. */
+  orientation?: string
+  lang?: string
+  page?: number
+}
 
 export interface AudioStockQuery {
   type?: string
@@ -174,6 +186,16 @@ export interface EditorServices {
     search(q: string, options: AudioStockQuery): Promise<StockSoundPage>
     previewUrl(id: string): string
     importSound(id: string): Promise<{ ref: AssetRef; credit: SoundCredit | null; durationMs: number | null }>
+  } | null
+  /**
+   * Stock clips for the Videos tab, through the server. Optional: absent or null (guests, adapters without it)
+   * hides the tab, and so does `info()` answering `configured: false`.
+   */
+  videoStock?: {
+    info(): Promise<StockVideoInfo>
+    search(q: string, options: VideoStockQuery): Promise<StockVideoPage>
+    previewUrl(provider: string, id: string): string
+    importVideo(video: StockVideo): Promise<AssetRef>
   } | null
   versions: {
     list(): Promise<VersionSummary[]>

@@ -92,11 +92,16 @@ def _wait_for(key: str) -> dict[str, Any] | None:
 
 
 def cached_search(
-    provider: providers.StockProvider, query: str, page: int, per_page: int, lang: str = ""
+    provider: providers.StockProvider,
+    query: str,
+    page: int,
+    per_page: int,
+    lang: str = "",
+    extra: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """One provider's page, from the cache when possible. Raises ProviderError (or ProviderBusy) only when
     neither a fresh nor a stale copy can be served."""
-    options = provider.search_options(lang)
+    options = {**provider.search_options(lang), **(extra or {})}
     key = _cache_key(provider.name, options, query, page, per_page)
     payload = cache.get(key)
     if payload is not None:
@@ -123,9 +128,9 @@ def cached_search(
             "provider": provider.name,
             "total": found.total,
             "next_page": found.next_page,
-            "results": [photo.as_dict() for photo in found.photos],
+            "results": [photo.as_dict() for photo in found.results],
         }
-        if seconds and found.photos:
+        if seconds and found.results:
             cache.set(key, payload, seconds)
             stale_seconds = min(seconds * 2, lifetime or seconds * 2)
             if stale_seconds > seconds:
@@ -138,14 +143,14 @@ def cached_search(
             cache.delete(f"{key}:lock")
 
 
-def _encode_cursor(pages: dict[str, int]) -> str | None:
+def encode_cursor(pages: dict[str, int]) -> str | None:
     if not pages:
         return None
     raw = json.dumps(pages, separators=(",", ":"), sort_keys=True).encode()
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-def _decode_cursor(cursor: str, names: list[str]) -> dict[str, int]:
+def decode_cursor(cursor: str, names: list[str]) -> dict[str, int]:
     invalid = serializers.ValidationError({"cursor": ["Not a valid cursor."]})
     try:
         data = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
@@ -177,11 +182,18 @@ def _search_in_thread(provider: providers.StockProvider, *args: Any) -> dict[str
 
 
 def search_all(
-    chosen: list[providers.StockProvider], pages: dict[str, int], query: str, per_page: int, lang: str
+    chosen: list[providers.StockProvider],
+    pages: dict[str, int],
+    query: str,
+    per_page: int,
+    lang: str,
+    extra: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Search `chosen` (each at its page) in parallel and mix the results in turn: U1, Px1, Pb1, U2, …"""
     futures = {
-        _POOL.submit(_search_in_thread, provider, query, pages[provider.name], per_page, lang): provider
+        _POOL.submit(
+            _search_in_thread, provider, query, pages[provider.name], per_page, lang, extra
+        ): provider
         for provider in chosen
     }
     done, _ = wait(futures, timeout=settings.STOCK_ALL_TIMEOUT_SECONDS)
@@ -222,7 +234,7 @@ def search_all(
         "configured": True,
         "provider": ALL,
         "total": sum(min(page["total"], caps[name] or page["total"]) for name, page in found.items()),
-        "next_page": _encode_cursor(next_pages),
+        "next_page": encode_cursor(next_pages),
         "results": results,
         "skipped": skipped,
     }
@@ -251,7 +263,7 @@ def search(
         if not chosen:
             return _not_configured(ALL)
         names = [provider.name for provider in chosen]
-        pages = _decode_cursor(cursor, names) if cursor else dict.fromkeys(names, 1)
+        pages = decode_cursor(cursor, names) if cursor else dict.fromkeys(names, 1)
         if not pages:
             raise serializers.ValidationError({"cursor": ["Not a valid cursor."]})
         return search_all([p for p in chosen if p.name in pages], pages, query, per_page, lang)

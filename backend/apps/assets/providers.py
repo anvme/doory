@@ -14,6 +14,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlsplit, urlunsplit
 
@@ -101,7 +102,7 @@ class StockPhoto:
 class SearchPage:
     total: int
     next_page: int | None
-    photos: list[StockPhoto]
+    results: list[StockPhoto]
 
 
 @dataclass(frozen=True)
@@ -206,14 +207,13 @@ def _seconds(value: object) -> float | None:
     return number if math.isfinite(number) and number >= 0 else None
 
 
-class StockProvider(ABC):
+class ProviderBase(ABC):
+    """What every provider needs: a key, a counted call, and the handling of the rate-limit headers."""
+
     name: str
     label: str
     attribution: str
     home_url: str
-    image_hosts: frozenset[str]
-    max_results: int | None = None  # the most a search can page through, when the provider caps it
-    url_lifetime_seconds: int | None = None  # how long the image URLs in a search answer keep working
     pause_fallback_seconds = 60  # how long to back off when the provider says "stop" without saying how long
 
     @property
@@ -262,6 +262,15 @@ class StockProvider(ABC):
     def _key(self) -> str: ...
 
     @abstractmethod
+    def _headers(self) -> dict[str, str]: ...
+
+
+class StockProvider(ProviderBase):
+    image_hosts: frozenset[str]
+    max_results: int | None = None  # the most a search can page through, when the provider caps it
+    url_lifetime_seconds: int | None = None  # how long the image URLs in a search answer keep working
+
+    @abstractmethod
     def valid_id(self, photo_id: str) -> bool: ...
 
     @abstractmethod
@@ -271,9 +280,6 @@ class StockProvider(ABC):
 
     @abstractmethod
     def resolve(self, photo_id: str) -> ResolvedPhoto: ...
-
-    @abstractmethod
-    def _headers(self) -> dict[str, str]: ...
 
     def track_download(self, resolved: ResolvedPhoto) -> None:
         """Report a download to providers that require it (they set `track_url`); never fails the import."""
@@ -610,7 +616,9 @@ def _stream(response: Any, deadline: float) -> Iterator[bytes]:
         yield chunk
 
 
-def download_image(url: str, *, hosts: frozenset[str], max_bytes: int, accept: str = "image/*") -> bytes:
+def _download_to(
+    url: str, *, hosts: frozenset[str], max_bytes: int, accept: str, write: Callable[[bytes], None]
+) -> None:
     """Fetch `url` (https, allow-listed host on every redirect hop) with a byte cap and a deadline."""
     deadline = time.monotonic() + DOWNLOAD_DEADLINE_SECONDS
     current = check_https_host(url, hosts)
@@ -633,19 +641,35 @@ def download_image(url: str, *, hosts: frozenset[str], max_bytes: int, accept: s
                 current = _redirect_target(current, location, hosts)
                 continue
             if response.status_code != 200:
-                raise ProviderError(f"The image host answered {response.status_code}.")
+                raise ProviderError(f"The file host answered {response.status_code}.")
             declared = response.headers.get("Content-Length", "")
             if declared.isdigit() and int(declared) > max_bytes:
-                raise PhotoTooLarge("The photo is too large.")
-            buffer = bytearray()
+                raise PhotoTooLarge("The file is too large.")
+            written = 0
             try:
                 for chunk in _stream(response, deadline):
-                    buffer.extend(chunk)
-                    if len(buffer) > max_bytes:
-                        raise PhotoTooLarge("The photo is too large.")
+                    written += len(chunk)
+                    if written > max_bytes:
+                        raise PhotoTooLarge("The file is too large.")
+                    write(chunk)
             except requests.RequestException as exc:
                 raise ProviderError("The download was interrupted.") from exc
-            return bytes(buffer)
+            return
         finally:
             response.close()
     raise ProviderError("Too many redirects.")
+
+
+def download_image(url: str, *, hosts: frozenset[str], max_bytes: int, accept: str = "image/*") -> bytes:
+    """Fetch `url` (https, allow-listed host on every redirect hop) with a byte cap and a deadline."""
+    buffer = bytearray()
+    _download_to(url, hosts=hosts, max_bytes=max_bytes, accept=accept, write=buffer.extend)
+    return bytes(buffer)
+
+
+def download_file(
+    url: str, *, hosts: frozenset[str], max_bytes: int, target: Path, accept: str = "video/*"
+) -> None:
+    """Fetch `url` into `target`, so a long clip is never held in memory."""
+    with open(target, "wb") as handle:
+        _download_to(url, hosts=hosts, max_bytes=max_bytes, accept=accept, write=handle.write)

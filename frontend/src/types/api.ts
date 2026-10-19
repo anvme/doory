@@ -218,6 +218,39 @@ export interface StockProviderInfo {
   attribution: string
   url: string
 }
+
+/** A stock clip: the poster, the length and who made it. The file itself is relayed by the server. */
+export interface StockVideo {
+  id: string
+  provider: string
+  thumb_url: string
+  preview_url: string
+  width: number
+  height: number
+  duration_ms: number
+  author: string
+  author_url: string
+  source_url: string
+}
+export interface StockVideoPage {
+  configured: boolean
+  /** A provider name, or `all`. */
+  provider: string
+  total: number
+  /** A page number for one provider; an opaque cursor for `all`. */
+  next_page: number | string | null
+  results: StockVideo[]
+  /** The provider failed or was busy, so an older copy of these results is shown. */
+  stale?: boolean
+  skipped?: StockSkipped[]
+}
+/** What the Videos tab needs; `configured: false` hides the tab. */
+export interface StockVideoInfo {
+  configured: boolean
+  providers: StockProviderInfo[]
+  /** The shapes a clip can have: `all`, `landscape`, `portrait`, `square`. */
+  orientations: string[]
+}
 /** What the Audio tool's Freesound tab needs; `configured: false` hides the tab. */
 export type AudioStockInfo =
   | { configured: false }

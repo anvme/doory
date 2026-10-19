@@ -180,6 +180,10 @@ STOCK_ALL_PROVIDERS = env.list("STOCK_ALL_PROVIDERS", default=[])  # searched by
 STOCK_ALL_TIMEOUT_SECONDS = env.float("STOCK_ALL_TIMEOUT_SECONDS", default=4.0)
 STOCK_DEFAULT_TAB = env("STOCK_DEFAULT_TAB", default="all")  # "all" or a provider name
 STOCK_LANG_FROM_UI = env.bool("STOCK_LANG_FROM_UI", default=True)
+# Stock video (apps.assets.video_stock). The clip providers have their own keys, so a busy video key never
+# uses up the photo quota; each key falls back to the photo key of the same provider when it is not set.
+PEXELS_VIDEO_API_KEY = env("PEXELS_VIDEO_API_KEY", default="")
+PIXABAY_VIDEO_API_KEY = env("PIXABAY_VIDEO_API_KEY", default="")
 # photo, illustration, vector or all
 STOCK_PIXABAY_IMAGE_TYPE = env("STOCK_PIXABAY_IMAGE_TYPE", default="photo")
 # Per provider: search cache time; calls allowed per API key, all users together ("100/m", "5000/h"; empty: no
@@ -190,8 +194,11 @@ _STOCK_DEFAULTS = {
     "pexels": (3600, True),
     "pixabay": (86400, True),
     "freesound": (86400, False),
+    "pexels_video": (3600, True),
+    "pixabay_video": (86400, True),
 }
-_STOCK_RATES = {"freesound": "60/m"}  # Freesound allows 60 calls a minute (and 2000 a day) per key
+# Freesound allows 60 calls a minute (and 2000 a day) per key; Pexels 200 an hour and Pixabay 5000.
+_STOCK_RATES = {"freesound": "60/m", "pexels_video": "200/h", "pixabay_video": "5000/h"}
 STOCK_PROVIDER_SETTINGS = {
     name: {
         "cache_seconds": env.int(f"STOCK_{name.upper()}_CACHE_SECONDS", default=cache_seconds),

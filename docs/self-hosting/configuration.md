@@ -162,6 +162,12 @@ See [stock-media.md](../integrations/stock-media.md).
 | `STOCK_<PROVIDER>_RATE` | `60/m` for freesound | Limit on calls per API key across all users, e.g. `5000/h` or `100/m`. Without it, a provider is paused only when it answers 429 |
 | `STOCK_<PROVIDER>_CACHE_SECONDS` | `3600` (`86400` for pixabay and freesound) | How long search results are cached |
 | `STOCK_<PROVIDER>_SAFESEARCH` | off for unsplash, on for pexels and pixabay | Ask the provider to filter out unsafe results |
+| `PEXELS_VIDEO_API_KEY` | | API key for the `pexels_video` provider (stock video). Falls back to `PEXELS_API_KEY` |
+| `PIXABAY_VIDEO_API_KEY` | | API key for the `pixabay_video` provider (stock video). Falls back to `PIXABAY_API_KEY` |
+| `STOCK_PEXELS_VIDEO_RATE` | `200/h` | Limit on calls to Pexels for video, per API key, across all users |
+| `STOCK_PEXELS_VIDEO_CACHE_SECONDS` | `3600` | How long stock video search results are cached |
+| `STOCK_PIXABAY_VIDEO_RATE` | `5000/h` | Limit on calls to Pixabay for video, per API key, across all users |
+| `STOCK_PIXABAY_VIDEO_CACHE_SECONDS` | `86400` | How long stock video search results are cached (the day Pixabay's terms ask for) |
 | `FREESOUND_API_KEY` | | API key for the Freesound tab in the Audio tool |
 | `FREESOUND_LICENSES` | `cc0` | Licences to offer: `cc0`, or `cc0,by` to also allow CC BY (the editor then lists the credits to publish). Freesound's API terms cover non-commercial use; a commercial service needs an agreement with Freesound first |
 
