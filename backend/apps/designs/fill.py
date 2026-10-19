@@ -21,7 +21,7 @@ from pydantic import TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
 from rest_framework.exceptions import Throttled, ValidationError
 
-from apps.assets.models import Asset
+from apps.assets.models import NON_PICTURE_KINDS, Asset
 
 from . import services
 from .doc import fields
@@ -79,7 +79,7 @@ def _image_source(owner, value: Any) -> dict:
             pass
         asset = (
             Asset.objects.filter(owner=owner, name__iexact=text)
-            .exclude(kind=Asset.Kind.AUDIO)
+            .exclude(kind__in=NON_PICTURE_KINDS)
             .order_by("-created_at")
             .first()
         )

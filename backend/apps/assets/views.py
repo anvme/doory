@@ -15,7 +15,7 @@ from .serializers import (
     AssetUpdateSerializer,
     AssetUploadSerializer,
 )
-from .services import create_asset, read_upload, storage_used
+from .services import create_uploaded_asset, storage_used
 from .throttling import UploadRateThrottle
 from .uploads import clean_name, reject_oversize_request
 
@@ -49,8 +49,8 @@ class AssetViewSet(
         parameters=[
             OpenApiParameter(
                 "kind",
-                enum=["image", "svg", "audio"],
-                description="Without it the list holds images and SVG; audio is listed only with kind=audio.",
+                enum=["image", "svg", "audio", "video"],
+                description=("Without it the list holds images and SVG; audio and video are listed by kind."),
             ),
             OpenApiParameter("q", str, description="Case-insensitive name search."),
             OpenApiParameter("ordering", str, description="created_at, name or size; prefix - to reverse."),
@@ -64,7 +64,7 @@ class AssetViewSet(
         if params.get("kind"):
             queryset = queryset.filter(kind=params["kind"])
         else:
-            queryset = queryset.exclude(kind=Asset.Kind.AUDIO)
+            queryset = queryset.exclude(kind__in=[Asset.Kind.AUDIO, Asset.Kind.VIDEO])
         if params.get("q"):
             queryset = queryset.filter(name__icontains=params["q"].strip())
         queryset = order_queryset(queryset, params.get("ordering"), ORDERING, "-created_at")
@@ -73,14 +73,14 @@ class AssetViewSet(
 
     @extend_schema(request=AssetUploadSerializer, responses={201: AssetSerializer})
     def create(self, request):
-        reject_oversize_request(request, settings.MAX_UPLOAD_BYTES)
+        reject_oversize_request(request, max(settings.MAX_UPLOAD_BYTES, settings.MAX_VIDEO_UPLOAD_BYTES))
         upload = AssetUploadSerializer(data=request.data)
         upload.is_valid(raise_exception=True)
         file = upload.validated_data["file"]
         name = clean_name(upload.validated_data.get("name") or file.name or "")
-        asset = create_asset(
+        asset = create_uploaded_asset(
             request.user,
-            read_upload(file),
+            file,
             name=name,
             tags=upload.validated_data.get("tags"),
         )

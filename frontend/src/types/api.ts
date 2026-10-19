@@ -152,7 +152,7 @@ export interface FolderT {
   created_at: string
 }
 
-export type AssetKind = 'image' | 'svg' | 'audio'
+export type AssetKind = 'image' | 'svg' | 'audio' | 'video'
 export interface Asset {
   id: string
   kind: AssetKind
@@ -168,6 +168,17 @@ export interface Asset {
   attribution: { provider: string; author: string; author_url: string; source_url: string } | null
   /** Length of an audio file when the container says (null for images and for audio that does not say). */
   duration_ms?: number | null
+  /** What a clip is; null for every kind but a video. */
+  video?: {
+    duration_ms: number | null
+    fps: number | null
+    has_audio: boolean
+    codec: string
+    width: number
+    height: number
+    /** The asset that holds the clip's sound, when it has one. */
+    audio_asset_id: string | null
+  } | null
   created_at: string
 }
 

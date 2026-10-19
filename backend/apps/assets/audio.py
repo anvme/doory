@@ -8,7 +8,8 @@ is stored as it came (re-encoding would need a decoder); it is served from `/med
 sandboxing CSP, as every upload is.
 
 `looks_like_audio` says whether the first bytes claim to be audio (so the caller does not try Pillow on them);
-`parse_audio` is the strict check and raises `AudioError` for anything that is not a coherent file.
+`parse_audio` is the strict check and raises `AudioError` for anything that is not a coherent file. A
+container with a video track raises `VideoInAudio`, which tells the caller the file is a clip and not sound.
 """
 
 from __future__ import annotations
@@ -56,6 +57,10 @@ _AUDIO_BRANDS = frozenset(
 
 class AudioError(ValueError):
     """The bytes are not a coherent audio file of a supported kind."""
+
+
+class VideoInAudio(AudioError):
+    """The container holds a video track: the file is a clip, not an audio file."""
 
 
 @dataclass(frozen=True)
@@ -382,9 +387,6 @@ def _boxes(data: bytes, start: int, end: int, budget: list[int]):
 
 
 def _parse_isobmff(data: bytes) -> AudioInfo:
-    brand = data[8:12]
-    if brand not in _AUDIO_BRANDS:
-        raise AudioError("The media file is not an audio file.")
     handlers: list[bytes] = []
     duration_ms = None
     seen: set[bytes] = set()
@@ -410,8 +412,11 @@ def _parse_isobmff(data: bytes) -> AudioInfo:
                 duration_ms = _mvhd_duration(data, body, box_end)
 
     walk(moov[0], moov[1], 0)
+    # The tracks are read before the brand: a clip may carry any brand, and a clip is not an audio file.
     if b"vide" in handlers or b"auxv" in handlers:
-        raise AudioError("The media file contains video, not just audio.")
+        raise VideoInAudio("The media file contains video, not just audio.")
+    if data[8:12] not in _AUDIO_BRANDS:
+        raise AudioError("The media file is not an audio file.")
     if b"soun" not in handlers:
         raise AudioError("The media file has no audio track.")
     return AudioInfo(mime=M4A_MIME, codec="aac", duration_ms=duration_ms)
@@ -508,10 +513,11 @@ def _parse_webm(data: bytes) -> AudioInfo:
         return True
 
     walk(0, len(data), 0)
+    # The tracks are read before the document type: a clip may be a Matroska file, and it is not audio.
+    if 1 in track_types or 3 in track_types:
+        raise VideoInAudio("The WebM file contains video, not just audio.")
     if state["doctype"] != b"webm":
         raise AudioError("The file is not a WebM file.")
-    if 1 in track_types or 3 in track_types:
-        raise AudioError("The WebM file contains video, not just audio.")
     if 2 not in track_types or not any(c in _WEBM_AUDIO_CODECS for c in codecs):
         raise AudioError("The WebM file has no Opus or Vorbis audio track.")
     duration = state["duration"]

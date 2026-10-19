@@ -30,6 +30,7 @@ services:
       context: ./backend
       args:
         INSTALL_CHROMIUM: ${INSTALL_CHROMIUM:-true}
+        INSTALL_FFMPEG: ${INSTALL_FFMPEG:-false}
     restart: unless-stopped
     init: true  # reaps the Chromium child processes of the PDF export
     depends_on:

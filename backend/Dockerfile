@@ -17,6 +17,11 @@ FROM python:3.14-slim AS runtime
 # its own sandbox in this image: the container (non-root user) is the isolation boundary.
 ARG INSTALL_CHROMIUM=false
 
+# Build with `--build-arg INSTALL_FFMPEG=true` to add ffmpeg, which video uploads need (it reads the
+# clip, writes its poster frame and extracts its sound). The image then advertises the feature through
+# VIDEO_ASSETS_ENABLED. ffmpeg runs as a separate process; the container is the isolation boundary.
+ARG INSTALL_FFMPEG=false
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
@@ -26,6 +31,7 @@ ENV PYTHONUNBUFFERED=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     WEB_CONCURRENCY=3 \
     SERVER_PDF_ENABLED=${INSTALL_CHROMIUM} \
+    VIDEO_ASSETS_ENABLED=${INSTALL_FFMPEG} \
     EXPORT_CHROMIUM_NO_SANDBOX=true
 
 RUN groupadd --system --gid 10001 doory \
@@ -36,6 +42,12 @@ COPY --from=builder /opt/venv /opt/venv
 RUN if [ "$INSTALL_CHROMIUM" = "true" ]; then \
         playwright install --with-deps chromium \
         && chmod -R a+rX /ms-playwright \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+RUN if [ "$INSTALL_FFMPEG" = "true" ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends ffmpeg \
         && rm -rf /var/lib/apt/lists/*; \
     fi
 

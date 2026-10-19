@@ -17,7 +17,7 @@ from apps.ai.errors import AIProviderError, ModelNotAvailable, QuotaReached, Run
 from apps.ai.tasks import TASKS
 from apps.ai.throttling import AIRateThrottle
 from apps.apitokens.scopes import ASSETS_WRITE
-from apps.assets.models import Asset
+from apps.assets.models import NON_PICTURE_KINDS, Asset
 from apps.assets.throttling import UploadRateThrottle
 
 from ..context import current
@@ -129,7 +129,7 @@ def remove_asset_background(
     except ValueError:
         pk = None
     asset = Asset.objects.filter(pk=pk, owner=user).first() if pk else None
-    if asset is None or asset.kind == Asset.Kind.AUDIO:
+    if asset is None or asset.kind in NON_PICTURE_KINDS:
         raise ToolError(f"There is no picture {asset_id!r} in your uploads (see list_assets).")
     option = choose_model(user, model)
     reserve_run(user, option)

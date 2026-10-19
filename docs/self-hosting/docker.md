@@ -28,6 +28,18 @@ A new site has no content yet. Add it next: see [content.md](content.md).
 To start optional services, set the profiles in `.env`, e.g. `COMPOSE_PROFILES=mcp,redis`, then
 `docker compose up -d`.
 
+### Optional layers in the API image
+
+The `api` image can carry two tools that are downloaded when it is built, never kept in the repository:
+
+| Build argument | What it adds | Size |
+|----------------|--------------|------|
+| `INSTALL_CHROMIUM=true` (default) | Headless Chromium, for [server-side export](image-export.md) | about 400 MB |
+| `INSTALL_FFMPEG=false` (default) | ffmpeg, for [video uploads](configuration.md#video-assets) | about 250 MB |
+
+Both are off or on through `.env`; an image built with `INSTALL_FFMPEG=true` also turns the video feature
+on (`VIDEO_ASSETS_ENABLED`), which you can still switch off again in `.env`.
+
 ## Pre-built images
 
 Instead of building, you can pull the published images (amd64 and arm64):

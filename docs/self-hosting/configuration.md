@@ -40,6 +40,7 @@ add a row to the matching section (see [CONTRIBUTING.md](../../CONTRIBUTING.md#d
 | `WEB_PORT` | `8080` | Port the site is published on |
 | `WEB_BIND` | `0.0.0.0` | Interface the port is published on. Use `127.0.0.1` when a reverse proxy on the same host sits in front |
 | `INSTALL_CHROMIUM` | `true` | Build a headless Chromium into the image, needed for [server-side export](image-export.md) (adds about 400 MB) |
+| `INSTALL_FFMPEG` | `false` | Build ffmpeg into the image, needed for [video uploads](#video-assets) (adds about 250 MB). An image built with it turns `VIDEO_ASSETS_ENABLED` on |
 | `COMPOSE_PROFILES` | | Optional services to start: `mcp`, `redis`, or both (`mcp,redis`) |
 | `REALTIME_WORKERS` | `1` | Workers of the `realtime` service. Use more than 1 only together with Redis |
 | `REALTIME_MEM_LIMIT` | `2g` | Memory limit of the `realtime` service |
@@ -166,6 +167,20 @@ See [stock-media.md](../integrations/stock-media.md).
 
 `<PROVIDER>` is the provider's name in capitals, e.g. `STOCK_PEXELS_RATE` or `STOCK_FREESOUND_RATE`. Limits and caching only work across
 workers when they share a cache (`CACHE_URL`).
+
+## Video assets
+
+People can upload video clips and place them on a page. The feature needs ffmpeg in the API container
+(`INSTALL_FFMPEG=true` builds it into the image) and stays off until an admin turns it on.
+
+| Setting | Default | What it does |
+|---------|---------|--------------|
+| `VIDEO_ASSETS_ENABLED` | `false` | Let people upload video clips. Needs ffmpeg in the API container |
+| `MAX_VIDEO_UPLOAD_BYTES` | `52428800` (50 MB) | Largest clip per upload. The clip and the sound taken from it both count against the user's quota |
+| `VIDEO_POSTER_MAX_EDGE` | `1280` | Longest side of the poster frame, the picture shown where a clip cannot play (page thumbnails, print, shared views) |
+| `FFMPEG_COMMAND` | `ffmpeg` | The ffmpeg binary, when it is not in `PATH` |
+| `FFPROBE_COMMAND` | `ffprobe` | The ffprobe binary, when it is not in `PATH` |
+| `FFMPEG_TIMEOUT_SECONDS` | `30` | Time limit for one ffmpeg or ffprobe call |
 
 ## AI image providers
 

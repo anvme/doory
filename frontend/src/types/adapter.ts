@@ -67,7 +67,7 @@ export interface AssetRef {
   width: number
   height: number
   name: string
-  kind: 'image' | 'svg' | 'audio'
+  kind: 'image' | 'svg' | 'audio' | 'video'
 }
 
 export interface SaveInput {

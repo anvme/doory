@@ -1,7 +1,7 @@
 from django.db.models import Prefetch
 from rest_framework import serializers
 
-from apps.assets.models import Asset
+from apps.assets.models import NON_PICTURE_KINDS, Asset
 from apps.assets.serializers import AssetSerializer
 from apps.assets.uploads import strip_unsafe_chars
 
@@ -92,7 +92,7 @@ class BrandKitSerializer(serializers.ModelSerializer):
         unique = list(dict.fromkeys(value))
         owned = set(
             Asset.objects.filter(owner=self.context["request"].user, pk__in=unique)
-            .exclude(kind=Asset.Kind.AUDIO)
+            .exclude(kind__in=NON_PICTURE_KINDS)
             .values_list("pk", flat=True)
         )
         if owned != set(unique):

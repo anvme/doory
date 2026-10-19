@@ -40,6 +40,13 @@ sudo systemctl daemon-reload && sudo nginx -t && sudo systemctl reload nginx
 
 Changes that need you to do something, newest first. Changes that need nothing aren't listed here.
 
+### 2026-10-19: video uploads (opt-in)
+
+- New setting `VIDEO_ASSETS_ENABLED` (off by default) and the build argument `INSTALL_FFMPEG` (off by
+  default, adds about 250 MB to the API image). Nothing changes unless you turn video uploads on; see
+  [configuration.md](configuration.md#video-assets).
+- **Without Docker:** install ffmpeg on the machine (`apt-get install ffmpeg`) before turning it on.
+
 ### 2026-10-18: separate storage for server-side image exports
 
 - **Docker:** a new `exports` volume and `EXPORT_STORAGE_ROOT=/app/exports`. `docker compose up -d` creates them.

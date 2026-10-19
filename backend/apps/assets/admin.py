@@ -47,6 +47,14 @@ class AssetAdmin(ModelAdmin):
                 '<audio controls preload="none" src="{}" style="height:32px;max-width:220px"></audio>',
                 obj.file.url,
             )
+        if obj.kind == Asset.Kind.VIDEO:
+            poster = obj.thumbnail.url if obj.thumbnail else ""
+            return format_html(
+                '<video controls preload="none" poster="{}" src="{}" '
+                'style="height:48px;max-width:96px;border-radius:4px"></video>',
+                poster,
+                obj.file.url,
+            )
         url = obj.thumbnail.url if obj.thumbnail else obj.file.url
         return format_html(
             '<img src="{}" alt="" style="max-height:48px;max-width:96px;border-radius:4px">', url

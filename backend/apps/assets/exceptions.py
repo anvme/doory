@@ -22,6 +22,12 @@ class QuotaExceeded(APIException):
     default_detail = "Your storage quota is full. Delete some uploads to free up space."
 
 
+class VideoDisabled(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = "video_disabled"
+    default_detail = "Video uploads are not enabled on this server."
+
+
 class LimitReached(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_code = "limit_reached"

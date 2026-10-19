@@ -12,7 +12,7 @@ from pydantic import Field
 from apps.apitokens.scopes import ASSETS_WRITE, DESIGNS_READ
 from apps.assets import audio_stock, credits, remote, stock
 from apps.assets.audio import looks_like_audio
-from apps.assets.models import Asset
+from apps.assets.models import NON_PICTURE_KINDS, Asset
 from apps.assets.services import create_asset
 from apps.assets.throttling import StockRateThrottle, UploadRateThrottle
 from apps.assets.uploads import clean_name
@@ -50,7 +50,7 @@ def list_assets(
 ) -> dict[str, Any]:
     """Your uploaded pictures, newest first. Place one with edit_design:
     {"op": "add_image", "asset_id": …}."""
-    assets = Asset.objects.filter(owner=current().user).exclude(kind=Asset.Kind.AUDIO)
+    assets = Asset.objects.filter(owner=current().user).exclude(kind__in=NON_PICTURE_KINDS)
     if query and query.strip():
         assets = assets.filter(name__icontains=query.strip())
     return {"assets": [_asset(a) for a in assets.order_by("-created_at")[:limit]]}

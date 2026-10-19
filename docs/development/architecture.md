@@ -21,7 +21,7 @@ All three backend entry points share the same code, settings and database. See t
 | `accounts` | Users, sign-up and sign-in, email confirmation, Google sign-in |
 | `ai` | AI image providers: API styles, the network policy for outgoing calls, encrypted keys, quotas (`reencrypt_ai_secrets`) |
 | `apitokens` | Personal access tokens and their permissions (used by MCP) |
-| `assets` | Uploads, per-user storage quota, the audio library (`sync_audio`) |
+| `assets` | Uploads, per-user storage quota, the audio library (`sync_audio`), video clips (`apps/assets/video.py`, read with ffmpeg) |
 | `brand` | Brand kits: colours, fonts, logos |
 | `collab` | Realtime co-editing: rooms, Yjs updates, snapshots, presence (`collab_maintenance`) |
 | `core` | Site-wide config endpoint, background-removal models (`sync_models`) |

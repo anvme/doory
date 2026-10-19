@@ -201,6 +201,16 @@ STOCK_PROVIDER_SETTINGS = {
     for name, (cache_seconds, safesearch) in _STOCK_DEFAULTS.items()
 }
 
+# ---- Video assets (apps.assets.video) ----
+# Off until an admin turns it on: ffmpeg reads untrusted files, so the feature adds risk. The Docker image
+# turns it on when it is built with INSTALL_FFMPEG=true.
+VIDEO_ASSETS_ENABLED = env.bool("VIDEO_ASSETS_ENABLED", default=False)
+MAX_VIDEO_UPLOAD_BYTES = env.int("MAX_VIDEO_UPLOAD_BYTES", default=50 * 1024 * 1024)  # per clip
+VIDEO_POSTER_MAX_EDGE = env.int("VIDEO_POSTER_MAX_EDGE", default=1280)  # longest side of the poster frame
+FFMPEG_COMMAND = env("FFMPEG_COMMAND", default="ffmpeg")
+FFPROBE_COMMAND = env("FFPROBE_COMMAND", default="ffprobe")
+FFMPEG_TIMEOUT_SECONDS = env.int("FFMPEG_TIMEOUT_SECONDS", default=30)  # per ffmpeg/ffprobe call
+
 # ---- DRF ----
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],

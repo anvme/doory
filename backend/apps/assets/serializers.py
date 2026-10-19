@@ -9,6 +9,7 @@ class AssetSerializer(serializers.ModelSerializer):
     thumb_url = serializers.SerializerMethodField()
     attribution = serializers.SerializerMethodField()
     duration_ms = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
 
     class Meta:
         model = Asset
@@ -25,6 +26,7 @@ class AssetSerializer(serializers.ModelSerializer):
             "tags",
             "attribution",
             "duration_ms",
+            "video",
             "created_at",
         )
         read_only_fields = fields
@@ -35,12 +37,33 @@ class AssetSerializer(serializers.ModelSerializer):
     def get_thumb_url(self, obj: Asset) -> str:
         if obj.thumbnail:
             return obj.thumbnail.url
-        return "" if obj.kind == Asset.Kind.AUDIO else obj.file.url
+        if obj.kind in (Asset.Kind.AUDIO, Asset.Kind.VIDEO):
+            return ""  # the poster, never the file itself
+        return obj.file.url
 
     def get_duration_ms(self, obj: Asset) -> int | None:
-        info = obj.meta.get("audio") if isinstance(obj.meta, dict) else None
-        value = info.get("duration_ms") if isinstance(info, dict) else None
-        return value if isinstance(value, int) and not isinstance(value, bool) else None
+        meta = obj.meta if isinstance(obj.meta, dict) else {}
+        for section in ("audio", "video"):
+            info = meta.get(section)
+            value = info.get("duration_ms") if isinstance(info, dict) else None
+            if isinstance(value, int) and not isinstance(value, bool):
+                return value
+        return None
+
+    def get_video(self, obj: Asset) -> dict | None:
+        """What the clip is (its length, frame rate and sound), or None for every other kind."""
+        info = obj.meta.get("video") if isinstance(obj.meta, dict) else None
+        if not isinstance(info, dict):
+            return None
+        return {
+            "duration_ms": info.get("duration_ms"),
+            "fps": info.get("fps"),
+            "has_audio": bool(info.get("has_audio")),
+            "codec": info.get("codec") or "",
+            "width": obj.width,
+            "height": obj.height,
+            "audio_asset_id": info.get("audio_asset_id") or None,
+        }
 
     def get_attribution(self, obj: Asset) -> dict | None:
         attribution = obj.meta.get("attribution") if isinstance(obj.meta, dict) else None

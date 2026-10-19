@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from apps.assets.exceptions import LimitReached
-from apps.assets.models import Asset
+from apps.assets.models import NON_PICTURE_KINDS, Asset
 
 from .models import BrandKit
 from .serializers import MAX_KITS_PER_USER
@@ -27,7 +27,8 @@ def create_kit(owner, data: dict) -> BrandKit:
         if kit.is_default:
             _make_only_default(owner, kit)
         kit.save()
-        kit.logos.set(Asset.objects.filter(owner=owner, pk__in=logo_ids).exclude(kind=Asset.Kind.AUDIO))
+        logos = Asset.objects.filter(owner=owner, pk__in=logo_ids).exclude(kind__in=NON_PICTURE_KINDS)
+        kit.logos.set(logos)
     return kit
 
 
@@ -42,5 +43,6 @@ def update_kit(owner, kit: BrandKit, data: dict) -> BrandKit:
             _make_only_default(owner, kit)
         kit.save()
         if logo_ids is not None:
-            kit.logos.set(Asset.objects.filter(owner=owner, pk__in=logo_ids).exclude(kind=Asset.Kind.AUDIO))
+            logos = Asset.objects.filter(owner=owner, pk__in=logo_ids).exclude(kind__in=NON_PICTURE_KINDS)
+            kit.logos.set(logos)
     return kit

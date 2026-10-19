@@ -18,6 +18,7 @@ class Asset(BaseModel):
         IMAGE = "image", "Image"
         SVG = "svg", "SVG"
         AUDIO = "audio", "Audio"
+        VIDEO = "video", "Video"
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="assets")
     kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.IMAGE)
@@ -37,3 +38,7 @@ class Asset(BaseModel):
 
     def __str__(self):
         return self.name or str(self.id)
+
+
+#: The kinds that are not pictures: they cannot be placed on a page, used as a logo or sent to a model.
+NON_PICTURE_KINDS = (Asset.Kind.AUDIO, Asset.Kind.VIDEO)

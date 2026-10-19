@@ -28,7 +28,7 @@ class TestRasterUpload:
         body = res.json()
         assert set(body) == {
             "id", "kind", "name", "url", "thumb_url", "width", "height", "size", "mime",
-            "tags", "attribution", "duration_ms", "created_at",
+            "tags", "attribution", "duration_ms", "video", "created_at",
         }  # fmt: skip
         assert (body["kind"], body["name"], body["width"], body["height"]) == (
             "image",
@@ -124,6 +124,7 @@ class TestRasterUpload:
 
     def test_declared_content_length_is_checked_before_parsing(self, api, settings):
         settings.MAX_UPLOAD_BYTES = 1_000
+        settings.MAX_VIDEO_UPLOAD_BYTES = 1_000
         res = api.post(
             URL, {"file": upload(image_bytes())}, format="multipart", CONTENT_LENGTH=str(50 * 1024 * 1024)
         )

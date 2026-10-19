@@ -51,7 +51,7 @@ class TestAccepted:
         body = post(api, wav_bytes()).json()
         assert set(body) == {
             "id", "kind", "name", "url", "thumb_url", "width", "height", "size", "mime",
-            "tags", "attribution", "duration_ms", "created_at",
+            "tags", "attribution", "duration_ms", "video", "created_at",
         }  # fmt: skip
 
     def test_duration_and_details(self, api):
@@ -99,8 +99,6 @@ class TestRejected:
             b"OggS" + b"\x00" * 60,
             b"\x00\x00\x00\x18ftypM4A \x00\x00\x00\x00M4A mp42isom",
             b"\x1a\x45\xdf\xa3" + b"\x00" * 60,
-            m4a_bytes((b"soun", b"vide"), brand=b"mp42"),
-            webm_bytes((1, 2)),
             b"MZ\x90\x00\x03\x00\x00\x00 executable",
             b"",
         ],
@@ -123,10 +121,6 @@ class TestRejected:
         res = post(api, SAFE_SVG, "song.wav")
         assert res.status_code == 201 and res.json()["kind"] == "svg"
 
-    def test_the_error_names_the_reason(self, api):
-        res = post(api, webm_bytes((1, 2)), "movie.webm")
-        assert "video" in res.json()["error"]["message"]
-
     def test_oversize_file_rejected(self, api, settings):
         settings.MAX_UPLOAD_BYTES = 2_000
         res = post(api, wav_bytes(seconds=1.0, rate=8000, bits=16))
@@ -139,6 +133,7 @@ class TestRejected:
 
     def test_declared_content_length_is_checked_first(self, api, settings):
         settings.MAX_UPLOAD_BYTES = 1_000
+        settings.MAX_VIDEO_UPLOAD_BYTES = 1_000
         res = api.post(
             URL,
             {"file": upload(wav_bytes(), "a.wav")},
