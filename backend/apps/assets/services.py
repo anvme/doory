@@ -204,6 +204,7 @@ def create_video_asset(
                 stored.append(companion.file.name)
                 companion.save()
                 asset.meta["video"]["audio_asset_id"] = str(companion.id)
+                asset.meta["video"]["audio_path"] = companion.file.name
                 asset.save(update_fields=["meta", "updated_at"])
     except Exception:
         delete_files(asset.file.storage, stored)

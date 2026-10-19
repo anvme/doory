@@ -80,6 +80,14 @@ export interface AssetRef {
   height: number
   name: string
   kind: 'image' | 'svg' | 'audio' | 'video'
+  /** What a clip is: its length and the asset that holds its sound. */
+  video?: {
+    durationMs: number | null
+    fps: number | null
+    hasAudio: boolean
+    audioAssetId: string | null
+    audioUrl: string | null
+  } | null
 }
 
 export interface SaveInput {

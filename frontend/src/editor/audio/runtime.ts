@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from 'react'
 import { useEditor } from '../context'
 import type { EditorEngine } from '../engine/editor'
+import { clipVoices } from './clipVoices'
 import { clockOf, pageDurationsMs } from './clock'
 import { readTracks } from './model'
 import { AudioPlayer, type PlayerState } from './player'
@@ -26,7 +27,7 @@ const runtimes = new WeakMap<EditorEngine, AudioRuntime>()
 
 function create(editor: EditorEngine): AudioRuntime {
   const player = new AudioPlayer({
-    tracks: () => readTracks(editor.getDocument()),
+    tracks: () => [...readTracks(editor.getDocument()), ...clipVoices(editor.getDocument())],
     pageIds: () => editor.getDocument().pages.map((p) => p.id),
     pageDurationsMs: () => pageDurationsMs(editor.getDocument()),
     load: (track, signal) => editor.audio.sources.load(track, signal),

@@ -15,6 +15,7 @@ import type {
   ObjectEffects,
   SlotSpec,
   TextCase,
+  VideoProps,
 } from '@/types/document'
 
 export interface QrSpec {
@@ -67,6 +68,8 @@ export interface DoryProps {
   filterSpecs?: ImageFilterSpec[]
   /** How the object comes in, moves and leaves in a presentation or a video (editor/animation). */
   animation?: ObjectAnimation
+  /** On a clip: what the clip is and how it plays (the picture is the poster frame). */
+  video?: VideoProps
   /** Set when an object could not be rebuilt (e.g. broken image): the original JSON is written back untouched. */
   rawDoc?: Record<string, unknown>
   /** Marks objects that exist only for editing UI and must never be serialised or exported. */

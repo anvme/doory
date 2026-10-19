@@ -24,7 +24,25 @@ export function createViewerLookup(owner: boolean): () => Promise<CommentViewer 
 }
 
 export function assetToRef(asset: Asset): AssetRef {
-  return { id: asset.id, url: asset.url, thumbUrl: asset.thumb_url, width: asset.width, height: asset.height, name: asset.name, kind: asset.kind }
+  return {
+    id: asset.id,
+    url: asset.url,
+    thumbUrl: asset.thumb_url,
+    width: asset.width,
+    height: asset.height,
+    name: asset.name,
+    kind: asset.kind,
+    video:
+      asset.kind === 'video' && asset.video
+        ? {
+            durationMs: asset.video.duration_ms,
+            fps: asset.video.fps,
+            hasAudio: asset.video.has_audio,
+            audioAssetId: asset.video.audio_asset_id,
+            audioUrl: asset.video.audio_url,
+          }
+        : null,
+  }
 }
 
 type PublicServices = Pick<EditorServices, 'fonts' | 'elements' | 'templates'>

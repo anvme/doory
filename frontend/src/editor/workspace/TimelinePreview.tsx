@@ -10,6 +10,9 @@ import { useEditor, useEditorState, useEditorStateShallow } from '../context'
 import { useLatest } from '../hooks/useLatest'
 import { type FrameRenderer, createFrameRenderer } from '../animation/frameRenderer'
 import { playbackOf, usePlaybackValue } from '../animation/playback'
+import { clipTimeMs } from '../animation/videoClip'
+import { type VideoFrameSource, ClipPlayer } from '../animation/videoFrames'
+import { videoKey, videoOf, videoSpeed, videoVolume } from '../engine/objects/video'
 import { previewLengthMs, previewMultiplier } from '../animation/timelineMath'
 import { getPageSize } from '../engine/pageSizes'
 import { t } from '../strings'
@@ -35,6 +38,9 @@ function Preview({ scrollRef }: PreviewProps) {
   const viewRef = useRef<HTMLDivElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<FrameRenderer | null>(null)
+  const playerRef = useRef<ClipPlayer | null>(null)
+  const clipsRef = useRef<{ key: string; src: string }[]>([])
+  const pageRef = useLatest(page)
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading')
   const [attempt, setAttempt] = useState(0)
   const length = useMemo(() => (page ? previewLengthMs(page) : 500), [page])
@@ -49,42 +55,85 @@ function Preview({ scrollRef }: PreviewProps) {
   const dpr = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
   const multiplier = previewMultiplier(settledZoom, dpr, size)
 
-  // Prepare the page for drawing (fonts, images, layers); drawn again when the page itself changes.
+  // Prepare the page for drawing (fonts, images, layers); drawn again when the page itself changes. The clips of
+  // the page get a hidden element each, so the preview can play them.
   useEffect(() => {
     const frame = frameRef.current
     if (!page || !frame) return
     let alive = true
     setStatus('loading')
-    createFrameRenderer(page, size, editor.loadContext, { multiplier })
-      .then((renderer) => {
-        if (!alive) {
-          renderer.dispose()
-          return
-        }
-        rendererRef.current = renderer
-        frame.replaceChildren(renderer.canvas)
-        renderer.canvas.setAttribute('aria-hidden', 'true')
-        renderer.render(playback.state.timeMs)
-        setStatus('ready')
-      })
-      .catch(() => {
-        if (alive) setStatus('failed')
-      })
+    const player = new ClipPlayer(document.body)
+    playerRef.current = player
+    const prepare = async (): Promise<void> => {
+      const clips = page.objects.map((object) => videoOf(object)).filter((video) => video !== null)
+      const resolved = await Promise.all(
+        clips.map(async (video) => ({
+          key: videoKey(video),
+          src: await editor.loadContext.resolveSrc(video.src),
+        })),
+      )
+      if (!alive) return
+      const sources = new Map<string, VideoFrameSource>()
+      for (const clip of resolved) sources.set(clip.key, player.source(clip.key, clip.src))
+      clipsRef.current = resolved
+      const renderer = await createFrameRenderer(page, size, editor.loadContext, { multiplier, videoFrames: sources })
+      if (!alive) {
+        renderer.dispose()
+        return
+      }
+      rendererRef.current = renderer
+      frame.replaceChildren(renderer.canvas)
+      renderer.canvas.setAttribute('aria-hidden', 'true')
+      renderer.render(playback.state.timeMs)
+      setStatus('ready')
+    }
+    prepare().catch(() => {
+      if (alive) setStatus('failed')
+    })
     return () => {
       alive = false
       rendererRef.current?.dispose()
       rendererRef.current = null
       frame.replaceChildren()
+      player.dispose()
+      playerRef.current = null
+      clipsRef.current = []
     }
   }, [editor, page, size, multiplier, playback, attempt])
 
-  // The frame follows the playhead.
+  // The frame follows the playhead, and the clips play with it.
   useEffect(
     () =>
       playback.subscribe(() => {
+        const player = playerRef.current
+        const page = pageRef.current
+        if (player && page) {
+          const state = playback.state
+          const timeMs = state.timeMs
+          const playing = state.playing
+          const rate = state.speed
+          player.sync(
+            page.objects.flatMap((object) => {
+              const video = videoOf(object)
+              if (!video) return []
+              const src = clipsRef.current.find((clip) => clip.key === videoKey(video))?.src ?? video.src
+              return [
+                {
+                  key: videoKey(video),
+                  src,
+                  timeMs: clipTimeMs(object, timeMs),
+                  playing,
+                  rate: rate * videoSpeed(video),
+                  muted: video.muted === true,
+                  volume: videoVolume(video),
+                },
+              ]
+            }),
+          )
+        }
         rendererRef.current?.render(playback.state.timeMs)
       }),
-    [playback],
+    [playback, pageRef],
   )
 
   // The clock.

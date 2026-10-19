@@ -129,25 +129,34 @@ function UploadsTab({ close }: PanelProps) {
 }
 
 const StockTab = loadable(() => import('./StockTab').then((m) => m.StockTab))
+const VideoTab = loadable(() => import('./VideoTab').then((m) => m.VideoTab))
 
-/** Image drawer: upload photo, plus a stock-photo tab when the server offers one. */
+/** Image drawer: upload photo, plus a stock-photo tab and a videos tab when the server offers them. */
 export function ImageDrawer(props: PanelProps) {
   const editor = useEditor()
   const hasStock = editor.adapter.services.stock !== null
-  const [tab, setTab] = useState<'uploads' | 'stock'>('uploads')
+  const hasVideo = editor.adapter.services.videoStock !== null
+  const [tab, setTab] = useState<'uploads' | 'stock' | 'videos'>('uploads')
   return (
     <>
-      {hasStock ? (
+      {hasStock || hasVideo ? (
         <div className={styles.tabs} role="tablist" aria-label={t.imageDrawer.tabs}>
           <button type="button" role="tab" className={styles.tab} aria-selected={tab === 'uploads'} data-testid="image-tab-uploads" onClick={() => setTab('uploads')}>
             {t.imageDrawer.uploads}
           </button>
-          <button type="button" role="tab" className={styles.tab} aria-selected={tab === 'stock'} data-testid="image-tab-stock" onClick={() => setTab('stock')}>
-            {t.imageDrawer.stock}
-          </button>
+          {hasStock ? (
+            <button type="button" role="tab" className={styles.tab} aria-selected={tab === 'stock'} data-testid="image-tab-stock" onClick={() => setTab('stock')}>
+              {t.imageDrawer.stock}
+            </button>
+          ) : null}
+          {hasVideo ? (
+            <button type="button" role="tab" className={styles.tab} aria-selected={tab === 'videos'} data-testid="image-tab-videos" onClick={() => setTab('videos')}>
+              {t.imageDrawer.videos}
+            </button>
+          ) : null}
         </div>
       ) : null}
-      {tab === 'uploads' || !hasStock ? <UploadsTab {...props} /> : <StockTab {...props} />}
+      {tab === 'videos' && hasVideo ? <VideoTab {...props} /> : tab === 'stock' && hasStock ? <StockTab {...props} /> : <UploadsTab {...props} />}
     </>
   )
 }

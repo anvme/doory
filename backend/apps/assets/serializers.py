@@ -1,3 +1,4 @@
+from django.core.files.storage import default_storage
 from rest_framework import serializers
 
 from .models import Asset
@@ -63,7 +64,18 @@ class AssetSerializer(serializers.ModelSerializer):
             "width": obj.width,
             "height": obj.height,
             "audio_asset_id": info.get("audio_asset_id") or None,
+            "audio_url": self._audio_url(info),
         }
+
+    def _audio_url(self, info: dict) -> str | None:
+        """Where the clip's sound can be fetched, when the clip has one."""
+        path = info.get("audio_path")
+        if not isinstance(path, str) or not path:
+            return None
+        try:
+            return default_storage.url(path)
+        except (NotImplementedError, ValueError):
+            return None
 
     def get_attribution(self, obj: Asset) -> dict | None:
         attribution = obj.meta.get("attribution") if isinstance(obj.meta, dict) else None

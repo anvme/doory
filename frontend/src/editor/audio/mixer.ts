@@ -11,6 +11,7 @@
 import type { DoryDocument } from '@/types/document'
 import { buildClock, MAX_CLOCK_MS } from './clock'
 import { isAudible, readTracks } from './model'
+import { clipVoices } from './clipVoices'
 import { type MixPlan, type Voice, planMix } from './plan'
 import { AudioLoadError, type SourceLoader, defaultSourceLoader } from './sources'
 
@@ -179,7 +180,8 @@ export async function mixAudio(document: DoryDocument, pageDurationsMs: readonly
   )
   if (clock.totalMs > MAX_CLOCK_MS) throw new AudioLoadError('too-long', 'The video is longer than the 30 minutes the audio mixdown renders.')
   if (!(sampleRate >= 8000 && sampleRate <= 192000)) throw new RangeError('sampleRate must be between 8000 and 192000')
-  const plan = planMix(readTracks(document).filter(isAudible), clock, { soloId: options.soloId })
+  const tracks = [...readTracks(document).filter(isAudible), ...clipVoices(document)]
+  const plan = planMix(tracks, clock, { soloId: options.soloId })
   const loaded = await loadSources(plan, options)
   options.onProgress?.(0.9)
   const mix: AudioBuffer =

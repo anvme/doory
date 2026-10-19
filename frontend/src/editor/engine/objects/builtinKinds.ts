@@ -3,7 +3,7 @@
  * Importing this module registers them (idempotent).
  */
 import { type FabricImage, type FabricObject, IText } from 'fabric'
-import type { DocObject } from '@/types/document'
+import type { DocObject, VideoProps } from '@/types/document'
 import { applyColorMap } from './elements'
 import { applyCurve } from './curvedText'
 import { applyEffects } from './effects'
@@ -11,6 +11,7 @@ import { applyImageFilters } from './filters'
 import { applyMask } from './masks'
 import { asDory } from './dory'
 import { registerObjectKind, typeName as typeOf } from './kinds'
+import { isVideoProps } from './video'
 import { validSlot } from './slot'
 import { readTextFit, refitTextbox, validFitFontSize } from './textStyle'
 import { qrDataUrl } from './qr'
@@ -77,6 +78,37 @@ export function registerBuiltinKinds(): void {
     hydrate(obj) {
       const map = asDory(obj).colorMap
       if (map) applyColorMap(obj, map)
+    },
+  })
+
+  registerObjectKind({
+    id: 'doryvideo',
+    label: t.kinds.video,
+    priority: 60,
+    matches: (o) => isVideoProps(o.video),
+    extraProps: ['video'],
+    async prepare(json, ctx) {
+      const video = json.video as VideoProps
+      // The canvas shows the poster frame; the clip itself is resolved too, for the player.
+      json.docSrc = video.poster
+      json.src = video.poster ? await ctx.resolveSrc(video.poster) : ''
+      json.crossOrigin = 'anonymous'
+      video.docSrc = video.src
+      video.src = video.src ? await ctx.resolveSrc(video.src) : ''
+      delete json.filters
+      delete json.clipPath
+    },
+    hydrate(obj, json) {
+      const video = json.video
+      if (isVideoProps(video)) asDory(obj).video = video
+    },
+    dehydrate(out) {
+      const video = out.video
+      if (!isVideoProps(video)) return
+      if (video.docSrc !== undefined) {
+        video.src = video.docSrc
+        delete video.docSrc
+      }
     },
   })
 

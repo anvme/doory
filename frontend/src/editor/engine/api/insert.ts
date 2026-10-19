@@ -251,6 +251,37 @@ export class InsertApi {
     }
   }
 
+  /**
+   * A clip is placed like a photo: its poster frame is the picture on the canvas, and the clip itself is
+   * played by the preview and drawn by the export.
+   */
+  async videoFromAsset(ref: AssetRef, at?: { x: number; y: number }, pageId?: string): Promise<void> {
+    const target = pageId ?? this.engine.state.activePageId
+    try {
+      const poster = await this.engine.assets.resolve(ref.thumbUrl || ref.url)
+      const img = await createImage({ src: ref.thumbUrl, url: poster, assetId: ref.id }, at ?? this.center(), this.fitFor(target))
+      const durationMs = ref.video?.durationMs ?? 0
+      asDory(img).video = {
+        src: ref.url,
+        poster: ref.thumbUrl,
+        assetId: ref.id,
+        durationMs,
+        trimStartMs: 0,
+        trimEndMs: durationMs,
+        loop: false,
+        muted: false,
+        volume: 1,
+        speed: 1,
+        audioAssetId: ref.video?.audioAssetId ?? null,
+        audioUrl: ref.video?.audioUrl ?? null,
+      }
+      asDory(img).name = ref.name
+      await this.add([img], t.history.addVideo, { pageId: target })
+    } catch {
+      this.engine.toast(t.errors.imageLoad, 'error')
+    }
+  }
+
   /** Uploads files through the adapter and adds each as an image (file picker, drag-drop, paste). */
   async imageFiles(files: readonly File[], at?: { x: number; y: number }, pageId?: string): Promise<AssetRef[]> {
     const added: AssetRef[] = []

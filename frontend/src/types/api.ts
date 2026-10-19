@@ -178,6 +178,8 @@ export interface Asset {
     height: number
     /** The asset that holds the clip's sound, when it has one. */
     audio_asset_id: string | null
+    /** Where the clip's sound can be fetched. */
+    audio_url: string | null
   } | null
   created_at: string
 }

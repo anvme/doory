@@ -14,12 +14,15 @@
 import { type FabricObject, StaticCanvas } from 'fabric'
 import type { DocObject, DocPage } from '@/types/document'
 import { type BuiltBackground, buildBackground } from '../engine/objects/background'
+import { isVideoObject, videoKey, videoOf } from '../engine/objects/video'
 import { renderableObjects } from '../engine/render'
 import { type LoadContext, deserializeObjects } from '../engine/serialization'
 import { type Surface, context2d, createCanvas, drawBlurred } from './canvasFx'
 import { animationOf, type PageTiming, pageTiming } from './model'
 import { emphasisPresets, inOutPresets } from './presets'
 import { type Box, type PageDims, type Sample, type UnitPlan, isRest, isSplittableText, sampleObject, sampleUnit, unitFor } from './sampler'
+import { clipTimeMs } from './videoClip'
+import { type VideoFrameSources } from './videoFrames'
 import { type SplitBy, type UnitBox, textUnitBoxes } from './textUnits'
 
 const RAD = Math.PI / 180
@@ -34,6 +37,8 @@ export interface FrameRendererOptions {
   multiplier: number
   /** Leave the page background out (a frame with transparency). */
   transparent?: boolean
+  /** Where the clips of the page get their frames from; without them the poster frame is drawn. */
+  videoFrames?: VideoFrameSources
 }
 
 export interface FrameRenderer {
@@ -85,7 +90,17 @@ interface AnimatedLayer {
   units: Map<SplitBy, UnitBitmap[]>
 }
 
-type Layer = StaticLayer | AnimatedLayer
+interface VideoLayer {
+  kind: 'video'
+  object: DocObject
+  box: Box
+  /** The poster frame, drawn when the clip has no live frame. */
+  tile: Placed
+  /** The clip's key: the frame sources are by it. */
+  key: string
+}
+
+type Layer = StaticLayer | AnimatedLayer | VideoLayer
 
 /* ------------------------------------------------------------------------------------------------
  * Preparing
@@ -324,6 +339,43 @@ function drawAnimated(ctx: Surface, layer: AnimatedLayer, s: Readonly<Sample>, m
   ctx.restore()
 }
 
+/**
+ * Draws a clip: its live frame when there is one, its poster frame otherwise. A clip is never baked into a
+ * static tile, because its picture changes from frame to frame.
+ */
+function drawVideo(
+  ctx: Surface,
+  layer: VideoLayer,
+  s: Readonly<Sample>,
+  tMs: number,
+  m: number,
+  sources: VideoFrameSources | undefined,
+): void {
+  if (!s.visible) return
+  const source = sources?.get(layer.key)
+  const frame = source ? source.frame(clipTimeMs(layer.object, tMs)) : null
+  ctx.save()
+  clipTo(ctx, s, layer.box, m)
+  ctx.globalAlpha = s.opacity
+  transformTo(ctx, s, layer.box, m)
+  if (frame) {
+    const w = layer.box.w * m
+    const h = layer.box.h * m
+    drawBlurred(ctx, frame, -w / 2, -h / 2, w, h, s.blur * m)
+  } else {
+    drawBlurred(
+      ctx,
+      layer.tile.canvas,
+      layer.tile.x - layer.box.cx * m,
+      layer.tile.y - layer.box.cy * m,
+      layer.tile.w,
+      layer.tile.h,
+      s.blur * m,
+    )
+  }
+  ctx.restore()
+}
+
 /* ------------------------------------------------------------------------------------------------
  * The renderer
  * ---------------------------------------------------------------------------------------------- */
@@ -361,7 +413,7 @@ export async function createFrameRenderer(page: DocPage, size: PageDims, ctx: Lo
   let first = true
   objects.forEach((obj, i) => {
     const doc = docs[i]
-    if (!isAnimated(doc)) {
+    if (!isAnimated(doc) && !isVideoObject(doc)) {
       run.push(obj)
       return
     }
@@ -382,6 +434,12 @@ export async function createFrameRenderer(page: DocPage, size: PageDims, ctx: Lo
       obj.dispose()
       return
     }
+    const video = videoOf(doc)
+    if (video) {
+      // A clip is drawn from its own frame source, never from a baked tile.
+      layers.push({ kind: 'video', object: doc, box, tile, key: videoKey(video) })
+      return
+    }
     const units = new Map<SplitBy, UnitBitmap[]>()
     for (const [by, list] of boxes) units.set(by, cutUnits(tile, list, box, m))
     layers.push({ kind: 'animated', object: doc, box, tile, units })
@@ -392,7 +450,8 @@ export async function createFrameRenderer(page: DocPage, size: PageDims, ctx: Lo
   const height = Math.max(1, Math.round(size.height * m))
   const canvas = createCanvas(width, height)
   const surface = context2d(canvas)
-  const animated = layers.filter((l): l is AnimatedLayer => l.kind === 'animated')
+  const sampled = layers.filter((l): l is AnimatedLayer | VideoLayer => l.kind !== 'static')
+  const hasVideo = layers.some((l) => l.kind === 'video')
   let last: Readonly<Sample>[] | null = null
   let disposed = false
 
@@ -404,8 +463,9 @@ export async function createFrameRenderer(page: DocPage, size: PageDims, ctx: Lo
     timing: pageTiming(page),
     render(tMs: number): HTMLCanvasElement {
       if (disposed) return canvas
-      const samples = animated.map((layer) => sampleObject(layer.object, tMs, size, layer.box))
-      if (last && samples.every((s, i) => sameSample(s, last![i]))) return canvas
+      const samples = sampled.map((layer) => sampleObject(layer.object, tMs, size, layer.box))
+      // A clip's picture changes from frame to frame, so the page is drawn again even when nothing moved.
+      if (!hasVideo && last && samples.every((s, i) => sameSample(s, last![i]))) return canvas
       last = samples
       surface.setTransform(1, 0, 0, 1, 0, 0)
       surface.globalAlpha = 1
@@ -413,6 +473,7 @@ export async function createFrameRenderer(page: DocPage, size: PageDims, ctx: Lo
       let next = 0
       for (const layer of layers) {
         if (layer.kind === 'static') drawPlaced(surface, layer.tile)
+        else if (layer.kind === 'video') drawVideo(surface, layer, samples[next++], tMs, m, options.videoFrames)
         else drawAnimated(surface, layer, samples[next++], m)
       }
       return canvas

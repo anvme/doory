@@ -215,6 +215,39 @@ export interface PageTransition {
 }
 
 /* ------------------------------------------------------------------------------------------------
+ * Video. A clip on a page is a picture (its poster frame) with these props; the clip itself is drawn by the
+ * frame renderer, from a live element in the editor and from the poster everywhere else.
+ * ---------------------------------------------------------------------------------------------- */
+
+export interface VideoProps {
+  /** The clip's file (the logical URL; the live object holds the resolved one). */
+  src: string
+  /** The poster frame: the picture the canvas shows. */
+  poster: string
+  /** The server asset of the clip. */
+  assetId?: string
+  /** The length of the whole clip, ms. */
+  durationMs?: number
+  /** Where in the clip the play starts and stops, ms. */
+  trimStartMs?: number
+  trimEndMs?: number
+  /** Whether the clip repeats while it is on the page. */
+  loop?: boolean
+  /** Whether the clip's sound is off. */
+  muted?: boolean
+  /** 0..1, the clip's loudness. */
+  volume?: number
+  /** 1 is the normal speed. */
+  speed?: number
+  /** The asset that holds the clip's sound, when it has one. */
+  audioAssetId?: string | null
+  /** Where the clip's sound can be fetched. */
+  audioUrl?: string | null
+  /** The logical clip URL, kept while the live object holds the resolved one. */
+  docSrc?: string
+}
+
+/* ------------------------------------------------------------------------------------------------
  * Audio. One optional document-level list; a document without it means exactly
  * what it always did. `editor/audio/model.ts` holds the limits and the tolerant reader.
  * ---------------------------------------------------------------------------------------------- */
