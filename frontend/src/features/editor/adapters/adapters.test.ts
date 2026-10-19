@@ -200,7 +200,7 @@ describe('account adapter', () => {
   it('maps uploaded assets to AssetRef and passes sources through', async () => {
     captureFetch(() => json({ id: 'a1', kind: 'image', name: 'cat.png', url: '/media/cat.png', thumb_url: '/media/cat-t.webp', width: 10, height: 20, size: 1, mime: 'image/png', tags: [], created_at: '' }, 201))
     const adapter = createAccountAdapter('d1', () => 1)
-    await expect(adapter.uploadAsset(new File(['x'], 'cat.png', { type: 'image/png' }))).resolves.toEqual({ id: 'a1', url: '/media/cat.png', thumbUrl: '/media/cat-t.webp', width: 10, height: 20, name: 'cat.png', kind: 'image' })
+    await expect(adapter.uploadAsset(new File(['x'], 'cat.png', { type: 'image/png' }))).resolves.toEqual({ id: 'a1', url: '/media/cat.png', thumbUrl: '/media/cat-t.webp', width: 10, height: 20, name: 'cat.png', kind: 'image', video: null })
     await expect(adapter.resolveSrc('/media/x.png')).resolves.toBe('/media/x.png')
     await expect(adapter.requireAccount('save', async () => snapshot())).resolves.toBe(true)
   })

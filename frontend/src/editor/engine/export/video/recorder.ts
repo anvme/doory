@@ -8,6 +8,7 @@
 import { VideoExportError, throwIfAborted } from './errors'
 import { videoBitrate } from './estimate'
 import { FrameComposer } from './composer'
+import { ClipFrameCache, captureExportClips } from './frames'
 import { FrameCursor } from './schedule'
 import { Slicer } from './slicer'
 import { AUDIO_RATE, type Deps, type Prepared, type VideoJob, type VideoResult, type VideoWarning, fileNameFor } from './types'
@@ -46,7 +47,9 @@ export async function runRecorder(job: VideoJob, prepared: Prepared, mime: strin
   const { timeline, frame, frames } = prepared
   const fps = options.fps
   const warnings: VideoWarning[] = ['real-time']
-  const composer = new FrameComposer({ frame, fit: options.fit, loadContext: job.host.loadContext, readback: false })
+  const clips = new ClipFrameCache()
+  await captureExportClips(prepared, clips, fps, (src) => job.host.loadContext.resolveSrc(src))
+  const composer = new FrameComposer({ frame, fit: options.fit, loadContext: job.host.loadContext, readback: false, videoFrames: clips.sources() })
   const canvas = document.createElement('canvas')
   canvas.width = frame.width
   canvas.height = frame.height

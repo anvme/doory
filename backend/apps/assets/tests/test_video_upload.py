@@ -91,7 +91,8 @@ class TestAccepted:
 
 @pytest.mark.django_db
 class TestRejected:
-    def test_video_uploads_are_off_by_default(self, api):
+    def test_video_uploads_are_off_by_default(self, api, settings):
+        settings.VIDEO_ASSETS_ENABLED = False
         res = post(api, m4a_bytes((b"soun", b"vide")))
         assert res.status_code == 400
         assert res.json()["error"]["code"] == "video_disabled"

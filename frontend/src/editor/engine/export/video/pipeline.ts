@@ -17,11 +17,13 @@
 import type { DocPage, DoryDocument } from '@/types/document'
 import { encodeAudio } from '../../../audio/encoder'
 import { isAudible, readTracks } from '../../../audio/model'
+import { clipVoices } from '../../../audio/clipVoices'
 import { mixAudio } from '../../../audio/mixer'
 import { pageSize } from '../../docOps'
 import { type EncodingPlan, browserCodecs, planEncoding } from './codecs'
 import { FrameComposer } from './composer'
 import { type Container, createContainer } from './container'
+import { ClipFrameCache, captureExportClips } from './frames'
 import { VideoExportError, describeFailure, throwIfAborted } from './errors'
 import { etaMs } from './estimate'
 import { GifTooLargeError } from './gifProtocol'
@@ -50,7 +52,8 @@ export function prepare(document: DoryDocument, pages: readonly { page: DocPage;
   const timeline = compileTimeline(sized, { pageSeconds: options.pageSeconds })
   if (timeline.totalMs > FORMAT_RULES[options.format].maxMs) throw new VideoExportError('too-long', 'The video is longer than this format allows.')
   const frame = frameSize(sized[0].size, options.resolution, options.format)
-  return { timeline, frame, frames: frameCount(timeline.totalMs, options.fps), hasSound: options.format !== 'gif' && options.audio && readTracks(document).some(isAudible) }
+  const hasSound = options.format !== 'gif' && options.audio && (readTracks(document).some(isAudible) || clipVoices(document).length > 0)
+  return { timeline, frame, frames: frameCount(timeline.totalMs, options.fps), hasSound }
 }
 
 /** Makes the file. Rejects with an `AbortError` when `job.signal` fires and with a `VideoExportError` for everything else. */
@@ -116,6 +119,10 @@ async function runWebCodecs(job: VideoJob, prepared: Prepared, plan: Extract<Enc
     }
   }
 
+  // The clips of the design are captured before the first frame is drawn, so the frame loop stays synchronous.
+  const clips = new ClipFrameCache()
+  await captureExportClips(prepared, clips, fps, (src) => job.host.loadContext.resolveSrc(src))
+
   const container = await createContainer({
     kind: options.format as 'mp4' | 'webm',
     family: plan.video.family,
@@ -150,7 +157,7 @@ async function runWebCodecs(job: VideoJob, prepared: Prepared, plan: Extract<Enc
       failure ??= error
     },
   })
-  const composer = new FrameComposer({ frame, fit: options.fit, loadContext: job.host.loadContext, readback: false })
+  const composer = new FrameComposer({ frame, fit: options.fit, loadContext: job.host.loadContext, readback: false, videoFrames: clips.sources() })
   try {
     encoder.configure(plan.video.config)
     const cursor = new FrameCursor(timeline, fps)
@@ -180,8 +187,11 @@ async function runWebCodecs(job: VideoJob, prepared: Prepared, plan: Extract<Enc
   } finally {
     if (encoder.state !== 'closed') encoder.close()
     composer.dispose()
+    clips.dispose()
   }
 }
+
+
 
 function finished(job: VideoJob, prepared: Prepared, container: Container, facts: Pick<VideoResult, 'frames' | 'video' | 'audio' | 'warnings'>, deps: Deps, startedAt: number): VideoResult {
   const blob = container.finish()
@@ -212,7 +222,9 @@ async function runGif(job: VideoJob, prepared: Prepared, deps: Deps, startedAt: 
   const framesStartAt = { value: deps.now() }
   const report = progressReporter(job, deps, startedAt, framesStartAt, { sound: 0, finishing: 0.03 })
   const sink = await createGifSink({ width: frame.width, height: frame.height, loops: options.loops, dither: options.dither, maxBytes: GIF_MAX_BYTES }, deps.gifWorker)
-  const composer = new FrameComposer({ frame, fit: options.fit, loadContext: job.host.loadContext, readback: true })
+  const clips = new ClipFrameCache()
+  await captureExportClips(prepared, clips, fps, (src) => job.host.loadContext.resolveSrc(src))
+  const composer = new FrameComposer({ frame, fit: options.fit, loadContext: job.host.loadContext, readback: true, videoFrames: clips.sources() })
   try {
     const cursor = new FrameCursor(timeline, fps)
     const slicer = new Slicer()
@@ -255,5 +267,6 @@ async function runGif(job: VideoJob, prepared: Prepared, deps: Deps, startedAt: 
   } finally {
     sink.dispose()
     composer.dispose()
+    clips.dispose()
   }
 }

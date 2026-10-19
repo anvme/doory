@@ -10,6 +10,7 @@
  */
 import type { DocPage } from '@/types/document'
 import { type FrameRenderer, createFrameRenderer } from '../../../animation/frameRenderer'
+import { type VideoFrameSources } from '../../../animation/videoFrames'
 import { sampleTransition } from '../../../animation/sampler'
 import { drawTransition } from '../../../animation/transitionRenderer'
 import { parseColor } from '../../colors'
@@ -25,6 +26,8 @@ export interface ComposerOptions {
   loadContext: LoadContext
   /** The frames are read back as pixels (a GIF): always draw into the frame's own canvas, with a context made for reading. */
   readback: boolean
+  /** The captured frames of the clips of the design; without them the poster frame is drawn. */
+  videoFrames?: VideoFrameSources
 }
 
 interface Entered {
@@ -129,7 +132,10 @@ export class FrameComposer {
     this.entered = null
     const { frame, fit } = this.options
     const { rect, scale } = placePage(segment.size, frame, fit)
-    const renderer = await createFrameRenderer(segment.page, segment.size, this.options.loadContext, { multiplier: scale })
+    const renderer = await createFrameRenderer(segment.page, segment.size, this.options.loadContext, {
+      multiplier: scale,
+      videoFrames: this.options.videoFrames,
+    })
     if (this.disposed) {
       renderer.dispose()
       throw new DOMException('Export cancelled', 'AbortError')
